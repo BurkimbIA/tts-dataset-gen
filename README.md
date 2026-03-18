@@ -1,95 +1,117 @@
-# moore-dataset-gen
+# tts-dataset-gen
 
-Pipeline de génération de dataset audio Mooré à partir de YouTube.
+**Automatisation de la collecte et transcription de playlists YouTube en Mooré pour construire des datasets TTS.**
+
+Ce projet télécharge automatiquement des émissions YouTube en langue Mooré, segmente l'audio, transcrit avec BIA-Whisper et publie un dataset HuggingFace prêt pour le fine-tuning TTS.
 
 ![Strategy](docs/strategy.png)
 
 ![Architecture](docs/architecture.png)
 
-## Vue d'ensemble
+---
 
-Ce projet construit un corpus audio annoté en langue **Mooré** (langue du Burkina Faso) à partir d'émissions YouTube, en 4 étapes :
+## Objectif
+
+Le Mooré est une langue sans ressources numériques suffisantes pour l'IA. Ce pipeline permet de **transformer n'importe quelle playlist YouTube en Mooré en dataset TTS structuré**, de façon automatique et reproductible.
 
 ```
-YouTube → Segmentation VAD → Transcription Whisper → HuggingFace Dataset
+Playlist YouTube (Mooré) → VAD → BIA-Whisper → HuggingFace Dataset → Fine-tuning TTS
 ```
 
-### Projet actif : `sidbi-ziri`
-- **Source** : Émission *SID BI ZÉRÉ* — SAVANE TV
-- **Playlist** : 247 vidéos
-- **Dataset** : `sawadogosalif/sidbi-ziri-dataset`
+---
+
+## Multi-projets
+
+Chaque **projet** correspond à une ou plusieurs playlists YouTube. Il suffit d'ajouter un `config.yaml` dans `projects/` :
+
+```
+projects/
+├── sidbi-ziri/         # Émission SID BI ZÉRÉ — SAVANE TV (247 vidéos)
+│   └── config.yaml
+├── kibare/             # Émission KIBARE — (à venir)
+│   └── config.yaml
+└── mon-projet/         # Toute autre playlist Mooré
+    └── config.yaml
+```
+
+Le même pipeline s'exécute pour chaque projet :
+```bash
+uv run --no-sync python chunk_pipeline.py      projects/kibare/config.yaml
+uv run --no-sync python transcribe_pipeline.py projects/kibare/config.yaml
+uv run --no-sync python create_dataset.py      projects/kibare/config.yaml
+```
 
 ---
 
 ## Structure
 
 ```
-moore-dataset-gen/
-├── chunk_pipeline.py        # Étape 1 & 2 : Download + Segmentation VAD → S3
-├── transcribe_pipeline.py   # Étape 3 : Transcription Whisper → S3
-├── create_dataset.py        # Étape 4 : S3 → HuggingFace Dataset
+tts-dataset-gen/
+├── chunk_pipeline.py        # Étape 1 : Download YouTube + Segmentation VAD → S3
+├── transcribe_pipeline.py   # Étape 2 : Transcription Whisper → S3
+├── create_dataset.py        # Étape 3 : S3 → HuggingFace Dataset
 │
-├── downloader.py            # yt-dlp parallel download
-├── segmenter.py             # Silero VAD segmentation (FLAC, 5–10s)
-├── transcriber.py           # Whisper batch transcription (CUDA)
-├── s3_utils.py              # Tigris S3 helpers
+├── tts_dataset_gen/         # Package core
+│   ├── s3_utils.py          # Tigris S3 helpers
+│   ├── downloader.py        # yt-dlp parallel download
+│   ├── segmenter.py         # Silero VAD (FLAC, 5–10s)
+│   └── transcriber.py       # Whisper batch transcription (CUDA)
 │
 ├── projects/
 │   └── sidbi-ziri/
-│       └── config.yaml      # Config du projet
+│       └── config.yaml
 │
-├── models/                  # Modèles cachés localement
-├── logs/                    # Logs par projet
 ├── docs/
-│   ├── strategy.png         # Pourquoi ce pipeline (vision stratégique)
-│   └── architecture.png     # Diagramme technique du pipeline
+│   ├── strategy.png         # Vision stratégique
+│   └── architecture.png     # Diagramme technique
 │
-├── pyproject.toml
-└── .env                     # Credentials Tigris S3 (non versionné)
+└── pyproject.toml
 ```
 
 ---
 
-## Configuration S3 (Tigris)
+## Créer un nouveau projet
 
+### 1. Créer le config
+
+```yaml
+# projects/kibare/config.yaml
+project:
+  name: "kibare"
+  language: "moore"
+
+youtube:
+  playlist_url: "https://www.youtube.com/playlist?list=..."
+  max_workers: 3
+
+segmentation:
+  min_duration: 5.0
+  max_duration: 10.0
+
+transcription:
+  model_id: "burkimbia/BIA-WHISPER-LARGE-SACHI_V2"
+  batch_size: 8
+  device: "auto"
+
+dataset:
+  hf_repo: "sawadogosalif/kibare-dataset"
+
+bucket:
+  name: "burkimbia"
+  endpoint: "https://fly.storage.tigris.dev"
 ```
-Bucket : burkimbia
-Endpoint : https://fly.storage.tigris.dev
 
-sidbi-ziri/
-├── chunks/{video_id}/*.flac        # Segments audio VAD
-└── transcripts/{video_id}.jsonl    # Transcriptions Whisper
-```
-
----
-
-## Lancer le pipeline
-
-### Prérequis
+### 2. Lancer le pipeline
 
 ```bash
-uv sync  # installe les dépendances (CUDA torch via index pytorch-cu124)
-cp path/to/.env .env  # credentials AWS/Tigris
-```
+# Téléchargement + segmentation VAD
+uv run --no-sync python chunk_pipeline.py projects/kibare/config.yaml
 
-### Étape 1 — Download + Segmentation
+# Transcription (GPU recommandé)
+uv run --no-sync python transcribe_pipeline.py projects/kibare/config.yaml
 
-```bash
-uv run --no-sync python chunk_pipeline.py projects/sidbi-ziri/config.yaml
-```
-
-### Étape 2 — Transcription (GPU requis)
-
-```bash
-uv run --no-sync python transcribe_pipeline.py projects/sidbi-ziri/config.yaml
-```
-
-> **Note GPU** : Le pipeline utilise greedy decoding (`num_beams=1`, `max_new_tokens=444`) pour tenir dans 8GB VRAM. Beam search par défaut causait des OOM sur RTX 4060.
-
-### Étape 3 — Push HuggingFace
-
-```bash
-uv run --no-sync python create_dataset.py projects/sidbi-ziri/config.yaml
+# Push HuggingFace
+uv run --no-sync python create_dataset.py projects/kibare/config.yaml
 ```
 
 ---
@@ -103,22 +125,32 @@ uv run --no-sync python create_dataset.py projects/sidbi-ziri/config.yaml
 | Language tag | `hausa` (proxy pour Mooré) |
 | Decoding | Greedy (`num_beams=1`) |
 | batch_size | 8 |
-| max_new_tokens | 444 (= 448 - 4 tokens spéciaux) |
+| max_new_tokens | 444 |
 
 ---
 
-## Format des transcriptions (JSONL)
+## S3 (Tigris)
 
-```json
-{"path": "s3://burkimbia/sidbi-ziri/chunks/VIDEO_ID/seg_001.flac", "duration": 7.4, "text": "...", "language": "hausa"}
+```
+burkimbia/
+└── {project_name}/
+    ├── chunks/{video_id}/*.flac        # Segments audio VAD
+    └── transcripts/{video_id}.jsonl    # Transcriptions Whisper
 ```
 
 ---
 
-## État actuel
+## Format JSONL
 
-| Étape | Statut |
-|-------|--------|
-| Download + Segmentation | ✅ 247/247 vidéos |
-| Transcription | 🔄 64/247 (183 restantes, ~10h) |
-| Dataset HuggingFace | ⏳ En attente |
+```json
+{"path": "s3://burkimbia/sidbi-ziri/chunks/VIDEO_ID/seg_001.flac", "duration": 7.4, "text": "yãmb yibar...", "language": "hausa"}
+```
+
+---
+
+## Projets actifs
+
+| Projet | Source | Vidéos | Statut |
+|--------|--------|--------|--------|
+| `sidbi-ziri` | SID BI ZÉRÉ — SAVANE TV | 247 | 🔄 Transcription en cours |
+| `kibare` | KIBARE | — | ⏳ À lancer |
