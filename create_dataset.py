@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from loguru import logger
 from tqdm import tqdm
 
-from s3_utils import BUCKET, chunks_prefix, transcripts_prefix, download_file, make_client
+from tts_dataset_gen.s3_utils import BUCKET, chunks_prefix, transcripts_prefix, download_file, make_client
 
 load_dotenv()
 

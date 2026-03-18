@@ -19,8 +19,8 @@ from dotenv import load_dotenv
 from loguru import logger
 from tqdm import tqdm
 
-from s3_utils import chunks_prefix, key_exists, make_client, upload_dir, upload_file
-from segmenter import segment_all
+from tts_dataset_gen.s3_utils import chunks_prefix, key_exists, make_client, upload_dir, upload_file
+from tts_dataset_gen.segmenter import segment_all
 
 load_dotenv()
 

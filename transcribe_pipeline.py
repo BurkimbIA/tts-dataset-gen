@@ -17,13 +17,13 @@ from dotenv import load_dotenv
 from loguru import logger
 from tqdm import tqdm
 
-from s3_utils import (
+from tts_dataset_gen.s3_utils import (
     chunks_prefix, transcripts_prefix,
     download_dir, key_exists,
     list_chunk_video_ids, list_chunks_for_video,
     make_client, upload_file,
 )
-from transcriber import Transcriber
+from tts_dataset_gen.transcriber import Transcriber
 
 load_dotenv()
 
