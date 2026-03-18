@@ -1,0 +1,12 @@
+yt-dlp
+boto3
+python-dotenv
+loguru
+tqdm
+pyyaml
+soundfile
+torch
+torchaudio
+transformers
+datasets
+huggingface_hub

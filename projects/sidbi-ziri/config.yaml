@@ -1,0 +1,41 @@
+# ============================================================
+# Project: sidbi-ziri
+# Source:  SAVANE TV — "SID BI ZÉRÉ" playlist (mooré)
+# ============================================================
+
+project:
+  name: "sidbi-ziri"
+  description: "Corpus audio mooré — émission SID BI ZÉRÉ (SAVANE TV)"
+  language: "moore"
+
+youtube:
+  playlist_url: "https://www.youtube.com/playlist?list=PLSOgrUVdOCfCr002jwrVp8yx3QzaZDJa3"
+  max_workers: 3
+
+segmentation:
+  min_duration: 5.0
+  max_duration: 10.0
+  max_workers: 1
+
+transcription:
+  model_id: "burkimbia/BIA-WHISPER-LARGE-SACHI_V2"
+  local_dir: "./models/BIA-WHISPER-LARGE-SACHI_V2"
+  batch_size: 8
+  device: "auto"
+
+filters:
+  min_chars: 5
+  min_duration: 1.0
+  max_duration: 10.0
+
+dataset:
+  hf_repo: "sawadogosalif/sidbi-ziri-dataset"
+  hf_private: false
+  push_to_hub: true
+
+bucket:
+  name: "burkimbia"
+  endpoint: "https://fly.storage.tigris.dev"
+
+logging:
+  log_file: "logs/sidbi-ziri.log"
