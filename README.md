@@ -2,7 +2,9 @@
 
 Pipeline de génération de dataset audio Mooré à partir de YouTube.
 
-![Architecture](docs/architecture.svg)
+![Strategy](docs/strategy.png)
+
+![Architecture](docs/architecture.png)
 
 ## Vue d'ensemble
 
@@ -39,7 +41,8 @@ moore-dataset-gen/
 ├── models/                  # Modèles cachés localement
 ├── logs/                    # Logs par projet
 ├── docs/
-│   └── architecture.svg     # Diagramme d'architecture
+│   ├── strategy.png         # Pourquoi ce pipeline (vision stratégique)
+│   └── architecture.png     # Diagramme technique du pipeline
 │
 ├── pyproject.toml
 └── .env                     # Credentials Tigris S3 (non versionné)
