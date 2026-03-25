@@ -34,7 +34,7 @@ dataset:
   push_to_hub: true
 
 bucket:
-  name: "burkimbia"
+  name: "burkimbia-store"
   endpoint: "https://fly.storage.tigris.dev"
 
 logging:
