@@ -76,7 +76,7 @@ def run(config_path: str, videos_per_window: int = 20):
 
             for r in records:
                 fname = Path(r["path"]).name.split("__", 1)[-1]
-                r["path"] = f"s3://burkimbia/{cp}{vid_id}/{fname}"
+                r["path"] = f"s3://burkimbia-store/{cp}{vid_id}/{fname}"
 
             jsonl_local = tmp_dir / f"{vid_id}.jsonl"
             with open(jsonl_local, "w", encoding="utf-8") as f:
