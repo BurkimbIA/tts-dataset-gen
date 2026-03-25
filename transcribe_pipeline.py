@@ -23,6 +23,7 @@ from tts_dataset_gen.s3_utils import (
     list_chunk_video_ids, list_chunks_for_video,
     make_client, upload_file,
 )
+
 from tts_dataset_gen.transcriber import Transcriber
 
 load_dotenv()
@@ -33,16 +34,18 @@ def run(config_path: str, videos_per_window: int = 20):
     project = cfg["project"]["name"]
     tr_cfg = cfg["transcription"]
     flt_cfg = cfg.get("filters", {})
+    bucket = cfg["bucket"]["name"]
+    datasets_root = cfg["bucket"]["paths"]["datasets"]
 
     Path(cfg.get("logging", {}).get("log_file", "logs/pipeline.log")).parent.mkdir(parents=True, exist_ok=True)
     logger.add(cfg.get("logging", {}).get("log_file", "logs/pipeline.log"), rotation="50 MB", encoding="utf-8")
 
     s3 = make_client()
-    tp = transcripts_prefix(project)
-    cp = chunks_prefix(project)
+    tp = transcripts_prefix(project, datasets_root)
+    cp = chunks_prefix(project, datasets_root)
 
-    all_video_ids = list_chunk_video_ids(s3, project)
-    pending = [v for v in all_video_ids if not key_exists(s3, f"{tp}{v}.jsonl")]
+    all_video_ids = list_chunk_video_ids(s3, bucket, project, datasets_root)
+    pending = [v for v in all_video_ids if not key_exists(s3, bucket, f"{tp}{v}.jsonl")]
     logger.info(f"[{project}] {len(pending)} à transcrire / {len(all_video_ids)} chunked")
 
     if not pending:
@@ -60,10 +63,10 @@ def run(config_path: str, videos_per_window: int = 20):
         tmp_dir = Path(tmp)
 
         for vid_idx, vid_id in enumerate(tqdm(pending, desc=f"[{project}] Transcription")):
-            keys = list_chunks_for_video(s3, project, vid_id)
+            keys = list_chunks_for_video(s3, bucket, project, datasets_root, vid_id)
             if not keys:
                 continue
-            local_paths = list(download_dir(s3, keys, tmp_dir, vid_id).keys())
+            local_paths = list(download_dir(s3, bucket, keys, tmp_dir, vid_id).keys())
             if not local_paths:
                 continue
 
@@ -76,13 +79,13 @@ def run(config_path: str, videos_per_window: int = 20):
 
             for r in records:
                 fname = Path(r["path"]).name.split("__", 1)[-1]
-                r["path"] = f"s3://burkimbia-store/{cp}{vid_id}/{fname}"
+                r["path"] = f"s3://{bucket}/{cp}{vid_id}/{fname}"
 
             jsonl_local = tmp_dir / f"{vid_id}.jsonl"
             with open(jsonl_local, "w", encoding="utf-8") as f:
                 for rec in records:
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-            upload_file(s3, jsonl_local, f"{tp}{vid_id}.jsonl")
+            upload_file(s3, bucket, jsonl_local, f"{tp}{vid_id}.jsonl")
             jsonl_local.unlink(missing_ok=True)
 
             for p in local_paths:
