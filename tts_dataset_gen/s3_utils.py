@@ -14,19 +14,25 @@ from loguru import logger
 
 _TRANSFER_CFG = TransferConfig(multipart_threshold=200 * 1024 * 1024, use_threads=True)
 
-BUCKET = "burkimbia"
+BUCKET = "burkimbia-store"
 ENDPOINT_URL = "https://fly.storage.tigris.dev"
-RAW_PREFIX = "augmented-data-for-tts/raw/"
-CHUNKS_PREFIX = "augmented-data-for-tts/chunks/"
+RAW_PREFIX = "audio/raw/tts/"
+CHUNKS_PREFIX = "audio/raw/tts/chunks/"
 AUDIO_EXTS = {".webm", ".wav", ".mp3", ".opus", ".ogg", ".m4a", ".flac"}
 
 
 def make_client():
+    from botocore.config import Config
     return boto3.client(
         "s3",
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
         endpoint_url=os.environ.get("AWS_ENDPOINT_URL_S3", ENDPOINT_URL),
+        config=Config(
+            read_timeout=120,
+            connect_timeout=30,
+            retries={"max_attempts": 5, "mode": "adaptive"},
+        ),
     )
 
 
@@ -107,11 +113,11 @@ def list_raw_audio(s3) -> list[str]:
 # ── Fonctions projet-aware ────────────────────────────────────────────────────
 
 def chunks_prefix(project: str) -> str:
-    return f"{project}/chunks/"
+    return f"audio/datasets/tts/{project}/chunks/"
 
 
 def transcripts_prefix(project: str) -> str:
-    return f"{project}/transcripts/"
+    return f"audio/datasets/tts/{project}/transcripts/"
 
 
 def list_chunk_video_ids(s3, project: str) -> list[str]:
