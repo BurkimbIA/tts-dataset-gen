@@ -34,8 +34,11 @@ dataset:
   push_to_hub: true
 
 bucket:
-  name: "burkimbia"
+  name: "burkimbia-store"
   endpoint: "https://fly.storage.tigris.dev"
+  paths:
+    raw: "audio/raw/tts"
+    datasets: "audio/datasets/tts"
 
 logging:
   log_file: "logs/sidbi-ziri.log"
